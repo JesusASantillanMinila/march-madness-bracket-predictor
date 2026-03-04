@@ -67,4 +67,4 @@ df_team_results = pd.merge(df_gsheet, df_m_teams, left_on = 'Team 2', right_on =
 # pandas.merge(df1, df2, how='left', left_on=['id_key'], right_on=['fk_key'])
 
 
-# st.dataframe(df_w_teams, use_container_width=True)
+st.dataframe(df_team_results, use_container_width=True)
