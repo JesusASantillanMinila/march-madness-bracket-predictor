@@ -64,7 +64,7 @@ st.subheader("JOIN Test")
 df_team_results = pd.merge(df_gsheet, df_m_teams, left_on = 'Team 1', right_on = 'TeamID')
 df_team_results = pd.merge(df_team_results, df_m_teams, left_on = 'Team 2', right_on = 'TeamID')
 
-# pandas.merge(df1, df2, how='left', left_on=['id_key'], right_on=['fk_key'])
-
+df_team_results = pd.merge(df_team_results, df_w_teams, left_on = 'Team 1', right_on = 'TeamID')
+df_team_results = pd.merge(df_team_results, df_w_teams, left_on = 'Team 2', right_on = 'TeamID')
 
 st.dataframe(df_team_results, use_container_width=True)
