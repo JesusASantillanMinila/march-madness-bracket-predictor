@@ -65,9 +65,9 @@ df_team_results = pd.merge(df_gsheet, df_m_teams, left_on = 'Team 1', right_on =
 df_team_results.rename(columns={'TeamName':'TeamName_1M','League_M':'League_1M'}, inplace=True)
 df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','League_1M']]
 
-# df_team_results = pd.merge(df_team_results, df_m_teams, left_on = 'Team 2', right_on = 'TeamID')
-# df_team_results.rename(columns={'TeamName':'TeamName_2M'}, inplace=True)
-# df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','TeamName_2M','League_1M']]
+df_team_results = pd.merge(df_team_results, df_m_teams, left_on = 'Team 2', right_on = 'TeamID')
+df_team_results.rename(columns={'TeamName':'TeamName_2M'}, inplace=True)
+df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','TeamName_2M','League_1M']]
 
 # df_team_results = pd.merge(df_team_results, df_w_teams, left_on = 'Team 1', right_on = 'TeamID')
 # df_team_results.rename(columns={'TeamName':'TeamName_1W','League_W':'League_1W'}, inplace=True)
