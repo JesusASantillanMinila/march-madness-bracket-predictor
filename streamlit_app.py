@@ -28,13 +28,13 @@ def load_all_data():
     m_csv_url = f'https://drive.google.com/uc?id={st.secrets["M_TEAM_NAMES_ID"]}'
     m_path = gdown.download(m_csv_url, quiet=True, fuzzy=True)
     df_m_teams = pd.read_csv(m_path)
-    df_m_teams['League_M'] = 'Men's League'
+    df_m_teams['League_M'] = """Men's League"""
 
     # --- 3. Read Women's CSV ---
     w_csv_url = f'https://drive.google.com/uc?id={st.secrets["W_TEAM_NAMES_ID"]}'
     w_path = gdown.download(w_csv_url, quiet=True, fuzzy=True)
     df_w_teams = pd.read_csv(w_path)
-    df_w_teams['League_W'] = 'Women's League'
+    df_w_teams['League_W'] = """Women's League"""
 
     return df_gsheet, df_m_teams, df_w_teams
 
