@@ -15,14 +15,14 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 
 def load_all_data():
-    # --- 1. Read Google Sheet (Your requested shape) ---
+    # --- 1. Read Google Sheet ---
     spreadsheet_key = st.secrets["KAGGLE_SUBMISSION_ID"]
     book = gc.open_by_key(spreadsheet_key)
     worksheet = book.worksheet("data") 
     table = worksheet.get_all_values()
     # Create DF using the first row as header and the rest as data
     df_gsheet = pd.DataFrame(table[1:], columns=table[0])
-    df_gsheet['Team 1', 'Team 2'] = df_gsheet['ID'].str.split('_', expand=True).iloc[:, [1, 2]]
+    df_gsheet[['Team 1', 'Team 2']] = df_gsheet['ID'].str.split('_', expand=True).iloc[:, [1, 2]]
 
     # --- 2. Read Men's CSV ---
     m_csv_url = f'https://drive.google.com/uc?id={st.secrets["M_TEAM_NAMES_ID"]}'
