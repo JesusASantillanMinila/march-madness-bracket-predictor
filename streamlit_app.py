@@ -47,6 +47,8 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("📊 Kaggle Submission (GSheet)")
     st.dataframe(df_gsheet, use_container_width=True)
+    num_rows = len(df_gsheet)
+    st.metric(label="Total Rows", value=num_rows)    
 
 with col2:
     st.subheader("👨 Men's Team Names (CSV)")
