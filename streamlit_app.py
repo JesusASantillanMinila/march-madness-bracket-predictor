@@ -7,173 +7,129 @@ import numpy as np
 
 st.set_page_config(page_title="🏀 March Madness Bracket Predictor", layout="wide")
 
-# 1. Setup Credentials
+# 1. Setup Credentials & Data Loading
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds_dict = st.secrets["gsheet_service_account"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-gc = gspread.authorize(creds)
 
+@st.cache_data
 def load_all_data():
     # --- 1. Read Google Sheet ---
+    creds_dict = st.secrets["gsheet_service_account"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    gc = gspread.authorize(creds)
+    
     spreadsheet_key = st.secrets["KAGGLE_SUBMISSION_ID"]
     book = gc.open_by_key(spreadsheet_key)
     worksheet = book.worksheet("data") 
     table = worksheet.get_all_values()
-    # Create DF using the first row as header and the rest as data
+    
     df_gsheet = pd.DataFrame(table[1:], columns=table[0])
     df_gsheet[['Team 1', 'Team 2']] = (df_gsheet['ID'].str.split('_', expand=True).iloc[:, [1, 2]]).astype(int)
+    df_gsheet['Pred'] = pd.to_numeric(df_gsheet['Pred'], errors='coerce')
 
     # --- 2. Read Men's CSV ---
     m_csv_url = f'https://drive.google.com/uc?id={st.secrets["M_TEAM_NAMES_ID"]}'
     m_path = gdown.download(m_csv_url, quiet=True, fuzzy=True)
     df_m_teams = pd.read_csv(m_path)
-    df_m_teams['League_M'] = """Men's League"""
+    df_m_teams['League'] = "Men's"
 
     # --- 3. Read Women's CSV ---
     w_csv_url = f'https://drive.google.com/uc?id={st.secrets["W_TEAM_NAMES_ID"]}'
     w_path = gdown.download(w_csv_url, quiet=True, fuzzy=True)
     df_w_teams = pd.read_csv(w_path)
-    df_w_teams['League_W'] = """Women's League"""
+    df_w_teams['League'] = "Women's"
 
     return df_gsheet, df_m_teams, df_w_teams
 
-# --- STATE MANAGEMENT LOGIC ---
-# This checks if the keys already exist in session_state. 
-# If not, it runs the loader once and stores them.
-if 'df_gsheet' not in st.session_state:
+# --- STATE MANAGEMENT ---
+if 'data_loaded' not in st.session_state:
     df_gsheet, df_m_teams, df_w_teams = load_all_data()
     st.session_state.df_gsheet = df_gsheet
     st.session_state.df_m_teams = df_m_teams
     st.session_state.df_w_teams = df_w_teams
-else:
-    # If they already exist, we just pull them from memory
-    df_gsheet = st.session_state.df_gsheet
-    df_m_teams = st.session_state.df_m_teams
-    df_w_teams = st.session_state.df_w_teams
+    st.session_state.data_loaded = True
 
-# --- UI AND JOIN LOGIC (Unchanged) ---
-st.title("🏀 March Madness Bracket Predictor")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("📊 Kaggle Submission (GSheet)")
-    st.dataframe(df_gsheet, use_container_width=True)
-    num_rows = len(df_gsheet)
-    st.metric(label="Total Rows", value=num_rows)    
-
-with col2:
-    st.subheader("👨 Men's Team Names (CSV)")
-    st.dataframe(df_m_teams, use_container_width=True)
-
-st.divider()
-
-st.subheader("👩 Women's Team Names (CSV)")
-st.dataframe(df_w_teams, use_container_width=True)
-
-st.divider()
-
-st.subheader("JOIN Test")
-df_team_results = pd.merge(df_gsheet, df_m_teams, left_on = 'Team 1', right_on = 'TeamID', how='left')
-df_team_results.rename(columns={'TeamName':'TeamName_1M','League_M':'League_1M'}, inplace=True)
-df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','League_1M']]
-
-df_team_results = pd.merge(df_team_results, df_m_teams, left_on = 'Team 2', right_on = 'TeamID', how='left')
-df_team_results.rename(columns={'TeamName':'TeamName_2M'}, inplace=True)
-df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','TeamName_2M','League_1M']]
-
-df_team_results = pd.merge(df_team_results, df_w_teams, left_on = 'Team 1', right_on = 'TeamID', how='left')
-df_team_results.rename(columns={'TeamName':'TeamName_1W','League_W':'League_1W'}, inplace=True)
-df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','TeamName_2M','TeamName_1W','League_1M','League_1W']]
-
-df_team_results = pd.merge(df_team_results, df_w_teams, left_on = 'Team 2', right_on = 'TeamID', how='left')
-df_team_results.rename(columns={'TeamName':'TeamName_2W'}, inplace=True)
-df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','TeamName_2M','TeamName_1W','TeamName_2W','League_1M','League_1W']]
-
-# Coalesce the columns
-df_team_results['Team Name 1'] = df_team_results['TeamName_1M'].combine_first(df_team_results['TeamName_1W'])
-df_team_results['Team Name 2'] = df_team_results['TeamName_2M'].combine_first(df_team_results['TeamName_2W'])
-df_team_results['League'] = df_team_results['League_1M'].combine_first(df_team_results['League_1W'])
-
-# Filter out intermediate columns
-df_team_results = df_team_results[['ID', 'Pred', 'Team Name 1', 'Team Name 2', 'League']]
-
-st.dataframe(df_team_results, use_container_width=True)
-
-
-
-# --- EXISTING DATA LOADING (Simplified for snippet) ---
-# (Keep your existing load_all_data() and session_state logic here)
-
-def get_prediction(team1, team2, df_probs):
-    """Finds the probability of team1 beating team2 from the gsheet data."""
-    # Kaggle IDs are usually formatted as 'Year_LowerID_HigherID'
-    # For this simulation, we'll look for the match in your joined df_team_results
-    match = df_probs[((df_probs['Team Name 1'] == team1) & (df_probs['Team Name 2'] == team2)) |
-                     ((df_probs['Team Name 1'] == team2) & (df_probs['Team Name 2'] == team1))]
+# Mapping for predictions
+def build_lookup_table():
+    m_map = st.session_state.df_m_teams.set_index('TeamID')['TeamName'].to_dict()
+    w_map = st.session_state.df_w_teams.set_index('TeamID')['TeamName'].to_dict()
+    full_map = {**m_map, **w_map}
     
+    df = st.session_state.df_gsheet.copy()
+    df['TeamName_1'] = df['Team 1'].map(full_map)
+    df['TeamName_2'] = df['Team 2'].map(full_map)
+    return df, sorted(list(full_map.values()))
+
+df_lookup, all_team_names = build_lookup_table()
+
+# Prediction Engine
+def predict_winner(t1, t2):
+    # Check T1 vs T2
+    match = df_lookup[(df_lookup['TeamName_1'] == t1) & (df_lookup['TeamName_2'] == t2)]
     if not match.empty:
-        pred = float(match.iloc[0]['Pred'])
-        # If team1 is actually 'Team 2' in the CSV, the probability is 1 - Pred
-        if match.iloc[0]['Team Name 1'] == team2:
-            return 1 - pred
-        return pred
-    return 0.5  # Default if match not found
+        return t1 if match.iloc[0]['Pred'] >= 0.5 else t2
+    
+    # Check T2 vs T1 (Inverse)
+    match = df_lookup[(df_lookup['TeamName_1'] == t2) & (df_lookup['TeamName_2'] == t1)]
+    if not match.empty:
+        # If Pred is for T2 winning over T1
+        return t2 if match.iloc[0]['Pred'] >= 0.5 else t1
+    
+    return t1 # Fallback
 
-# --- UI SETTINGS ---
-st.sidebar.header("Tournament Settings")
-league = st.sidebar.selectbox("Select League", ["Men's League", "Women's League"])
+# --- UI INTERFACE ---
+st.title("🏀 March Madness Bracket Simulator")
+st.markdown("Select your 64 teams and let the model predict the path to the championship.")
 
-# Filter data based on league
-df_filtered = df_team_results[df_team_results['League'] == league].reset_index(drop=True)
+# Region Setup
+regions = ["East", "West", "South", "Midwest"]
+bracket_inputs = {}
 
-# 1. INITIAL TEAM SELECTION (Top 64 based on available data)
-# In a real scenario, you'd provide a multiselect or a predefined list
-initial_teams = list(pd.unique(df_filtered[['Team Name 1', 'Team Name 2']].values.ravel('K')))[:64]
+st.divider()
+st.header("1. Set the Seeds")
+reg_cols = st.columns(4)
 
-st.subheader(f"🏀 {league} Bracket Simulation")
+for i, region in enumerate(regions):
+    with reg_cols[i]:
+        st.subheader(f"Region: {region}")
+        region_teams = []
+        for seed in range(1, 17):
+            # Default selection shifts slightly so they aren't all the same team on load
+            t = st.selectbox(f"Seed {seed}", all_team_names, index=(seed + i*5) % len(all_team_names), key=f"{region}_{seed}")
+            region_teams.append(t)
+        bracket_inputs[region] = region_teams
 
-if len(initial_teams) < 64:
-    st.warning(f"Only {len(initial_teams)} teams found in data. Need 64 for a full bracket.")
-    # For demo purposes, we'll proceed with what we have
-    num_teams = 2**int(np.log2(len(initial_teams))) 
-    current_round_teams = initial_teams[:num_teams]
-else:
-    current_round_teams = initial_teams[:64]
+st.divider()
 
-# --- SIMULATION LOGIC ---
-bracket_results = {}
-round_names = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship"]
-temp_teams = current_round_teams.copy()
-
-# Visualize rounds in columns
-cols = st.columns(len(round_names))
-
-round_idx = 0
-while len(temp_teams) > 1:
-    winners = []
-    with cols[round_idx]:
-        st.caption(f"**{round_names[round_idx]}**")
-        for i in range(0, len(temp_teams), 2):
-            t1 = temp_teams[i]
-            t2 = temp_teams[i+1]
+if st.button("🔥 Run Simulation", type="primary", use_container_width=True):
+    final_four = []
+    
+    [Image of NCAA basketball tournament bracket structure]
+    
+    results_cols = st.columns(4)
+    for i, region in enumerate(regions):
+        with results_cols[i]:
+            st.markdown(f"### {region} Bracket")
+            teams = bracket_inputs[region]
             
-            # Simulate match
-            prob = get_prediction(t1, t2, df_filtered)
-            winner = t1 if prob >= 0.5 else t2
-            winners.append(winner)
+            # Round 1: 1v16, 2v15, 3v14, 4v13, 5v12, 6v11, 7v10, 8v9
+            r1_matchups = [(0,15), (7,8), (4,11), (3,12), (5,10), (2,13), (6,9), (1,14)]
+            r32_teams = [predict_winner(teams[m[0]], teams[m[1]]) for m in r1_matchups]
             
-            # Display Matchup
-            st.info(f"{t1} vs {t2}  \n**Winner: {winner}**")
+            with st.expander("Round of 32"):
+                st.write(r32_teams)
             
-    temp_teams = winners
-    round_idx += 1
-
-# Display Winner
-if len(temp_teams) == 1:
-    st.balloons()
-    st.success(f"🏆 **Tournament Champion: {temp_teams[0]}**")
-
-# --- DATA EDITOR FOR USERS ---
-with st.expander("Edit Initial Matchups/Predictions"):
-    edited_df = st.data_editor(df_filtered)
+            # Round 2 -> Sweet 16
+            s16_teams = [predict_winner(r32_teams[0], r32_teams[1]), 
+                         predict_winner(r32_teams[2], r32_teams[3]),
+                         predict_winner(r32_teams[4], r32_teams[5]),
+                         predict_winner(r32_teams[6], r32_teams[7])]
+            
+            with st.expander("Sweet 16"):
+                st.write(s16_teams)
+                
+            # Elite 8
+            e8_teams = [predict_winner(s16_teams[0], s16_teams[1]),
+                        predict_winner(s16_teams[2], s16_teams[3])]
+            
+            # Regional Final
+            regional_
