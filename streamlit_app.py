@@ -42,13 +42,13 @@ def load_all_data():
 
     # Build df_team_results
     df = pd.merge(df_gsheet, df_m_teams[['TeamID','TeamName']].rename(columns={'TeamName':'TN1M'}),
-                  left_on='Team 1', right_on='TeamID', how='left').drop(columns={'TeamID','LastD1Season','FirstD1Season'})
+                  left_on='Team 1', right_on='TeamID', how='left').drop(columns='TeamID')
     df = pd.merge(df, df_m_teams[['TeamID','TeamName']].rename(columns={'TeamName':'TN2M'}),
-                  left_on='Team 2', right_on='TeamID', how='left').drop(columns={'TeamID','LastD1Season','FirstD1Season'})
+                  left_on='Team 2', right_on='TeamID', how='left').drop(columns='TeamID')
     df = pd.merge(df, df_w_teams[['TeamID','TeamName']].rename(columns={'TeamName':'TN1W','League':'Lg1W'}),
-                  left_on='Team 1', right_on='TeamID', how='left').drop(columns={'TeamID','LastD1Season','FirstD1Season'})
+                  left_on='Team 1', right_on='TeamID', how='left').drop(columns='TeamID')
     df = pd.merge(df, df_w_teams[['TeamID','TeamName']].rename(columns={'TeamName':'TN2W'}),
-                  left_on='Team 2', right_on='TeamID', how='left').drop(columns={'TeamID','LastD1Season','FirstD1Season'})
+                  left_on='Team 2', right_on='TeamID', how='left').drop(columns='TeamID')
 
     df['Team Name 1'] = df['TN1M'].combine_first(df['TN1W'])
     df['Team Name 2'] = df['TN2M'].combine_first(df['TN2W'])
