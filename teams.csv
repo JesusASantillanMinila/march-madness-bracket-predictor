@@ -1,0 +1,65 @@
+﻿seed,team_name,division,league, ,team_id
+1,Duke,South,Men's,1181,South
+16,Howard,South,Men's,1224,South
+8,UCF,South,Men's,1416,South
+9,Georgia,South,Men's,1208,South
+5,Arkansas,South,Men's,1116,South
+12,Yale,South,Men's,1463,South
+4,Kansas,South,Men's,1242,South
+13,UNC Wilmington,South,Men's,1423,South
+6,Kentucky,South,Men's,1246,South
+11,UCLA,South,Men's,1417,South
+3,Texas Tech,South,Men's,1403,South
+14,Hawaii,South,Men's,1218,South
+7,St Louis,South,Men's,1387,South
+10,Texas A&M,South,Men's,1401,South
+2,Michigan St,South,Men's,1277,South
+15,Merrimack,South,Men's,1467,South
+1,Connecticut,Midwest,Men's,1163,Midwest
+16,Tennessee St,Midwest,Men's,1398,Midwest
+8,Miami FL,Midwest,Men's,1274,Midwest
+9,Iowa,Midwest,Men's,1234,Midwest
+5,North Carolina,Midwest,Men's,1314,Midwest
+12,South Florida,Midwest,Men's,1378,Midwest
+4,Alabama,Midwest,Men's,1104,Midwest
+13,High Point,Midwest,Men's,1219,Midwest
+6,Tennessee,Midwest,Men's,1397,Midwest
+11,Indiana,Midwest,Men's,1231,Midwest
+3,Iowa St,Midwest,Men's,1235,Midwest
+14,N Dakota St,Midwest,Men's,1295,Midwest
+7,St Mary's CA,Midwest,Men's,1388,Midwest
+10,SMU,Midwest,Men's,1374,Midwest
+2,Illinois,Midwest,Men's,1228,Midwest
+15,Tennessee St,Midwest,Men's,1398,Midwest
+1,Michigan,West,Men's,1276,West
+16,UMBC,West,Men's,1420,West
+8,Utah St,West,Men's,1429,West
+9,NC State,West,Men's,1301,West
+5,Vanderbilt,West,Men's,1435,West
+12,Belmont,West,Men's,1125,West
+4,Virginia,West,Men's,1438,West
+13,SF Austin,West,Men's,1372,West
+6,Louisville,West,Men's,1257,West
+11,Santa Clara,West,Men's,1365,West
+3,Nebraska,West,Men's,1304,West
+14,Troy,West,Men's,1407,West
+7,Wisconsin,West,Men's,1458,West
+10,Texas,West,Men's,1400,West
+2,Houston,West,Men's,1222,West
+15,Wright St,West,Men's,1460,West
+1,Arizona,#REF!,Men's,1112,#REF!
+16,Portland St,#REF!,Men's,1340,#REF!
+8,Clemson,#REF!,Men's,1155,#REF!
+9,Missouri,#REF!,Men's,1281,#REF!
+5,St John's,#REF!,Men's,1385,#REF!
+12,Liberty,#REF!,Men's,1251,#REF!
+4,Gonzaga,#REF!,Men's,1211,#REF!
+13,Utah Valley,#REF!,Men's,1430,#REF!
+6,BYU,#REF!,Men's,1140,#REF!
+11,Miami OH,#REF!,Men's,1275,#REF!
+3,Purdue,#REF!,Men's,1345,#REF!
+14,Navy,#REF!,Men's,1298,#REF!
+7,Villanova,#REF!,Men's,1437,#REF!
+10,Ohio St,#REF!,Men's,1326,#REF!
+2,Florida,#REF!,Men's,1196,#REF!
+15,Cent Arkansas,#REF!,Men's,1146,#REF!
