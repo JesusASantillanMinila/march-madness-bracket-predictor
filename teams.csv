@@ -1,0 +1,129 @@
+﻿team_name,team_id,division,league,seed
+Duke,1181,South,Men's,1
+Howard,1224,South,Men's,16
+UCF,1416,South,Men's,8
+Georgia,1208,South,Men's,9
+Arkansas,1116,South,Men's,5
+Yale,1463,South,Men's,12
+Kansas,1242,South,Men's,4
+UNC Wilmington,1423,South,Men's,13
+Kentucky,1246,South,Men's,6
+UCLA,1417,South,Men's,11
+Texas Tech,1403,South,Men's,3
+Hawaii,1218,South,Men's,14
+St Louis,1387,South,Men's,7
+Texas A&M,1401,South,Men's,10
+Michigan St,1277,South,Men's,2
+Merrimack,1467,South,Men's,15
+Connecticut,1163,Midwest,Men's,1
+Tennessee St,1398,Midwest,Men's,16
+Miami FL,1274,Midwest,Men's,8
+Iowa,1234,Midwest,Men's,9
+North Carolina,1314,Midwest,Men's,5
+South Florida,1378,Midwest,Men's,12
+Alabama,1104,Midwest,Men's,4
+High Point,1219,Midwest,Men's,13
+Tennessee,1397,Midwest,Men's,6
+Indiana,1231,Midwest,Men's,11
+Iowa St,1235,Midwest,Men's,3
+N Dakota St,1295,Midwest,Men's,14
+St Mary's CA,1388,Midwest,Men's,7
+SMU,1374,Midwest,Men's,10
+Illinois,1228,Midwest,Men's,2
+Tennessee St,1398,Midwest,Men's,15
+Michigan,1276,West,Men's,1
+UMBC,1420,West,Men's,16
+Utah St,1429,West,Men's,8
+NC State,1301,West,Men's,9
+Vanderbilt,1435,West,Men's,5
+Belmont,1125,West,Men's,12
+Virginia,1438,West,Men's,4
+SF Austin,1372,West,Men's,13
+Louisville,1257,West,Men's,6
+Santa Clara,1365,West,Men's,11
+Nebraska,1304,West,Men's,3
+Troy,1407,West,Men's,14
+Wisconsin,1458,West,Men's,7
+Texas,1400,West,Men's,10
+Houston,1222,West,Men's,2
+Wright St,1460,West,Men's,15
+Arizona,1112,East,Men's,1
+Portland St,1340,East,Men's,16
+Clemson,1155,East,Men's,8
+Missouri,1281,East,Men's,9
+St John's,1385,East,Men's,5
+Liberty,1251,East,Men's,12
+Gonzaga,1211,East,Men's,4
+Utah Valley,1430,East,Men's,13
+BYU,1140,East,Men's,6
+Miami OH,1275,East,Men's,11
+Purdue,1345,East,Men's,3
+Navy,1298,East,Men's,14
+Villanova,1437,East,Men's,7
+Ohio St,1326,East,Men's,10
+Florida,1196,East,Men's,2
+Cent Arkansas,1146,East,Men's,15
+Connecticut,3163,East,Women's,1
+Navy,3298,East,Women's,16
+Illinois,3228,East,Women's,8
+Syracuse,3393,East,Women's,9
+Notre Dame,3323,East,Women's,5
+Ga Southern,3204,East,Women's,12
+Maryland,3268,East,Women's,4
+McNeese St,3270,East,Women's,13
+Baylor,3124,East,Women's,6
+Nebraska,3304,East,Women's,11
+Louisville,3257,East,Women's,3
+Col Charleston,3158,East,Women's,14
+Texas Tech,3403,East,Women's,7
+Rhode Island,3348,East,Women's,10
+LSU,3261,East,Women's,2
+Louisiana Tech,3256,East,Women's,15
+Texas,3400,West,Women's,1
+Howard,3224,West,Women's,16
+USC,3425,West,Women's,8
+Iowa St,3235,West,Women's,9
+North Carolina,3314,West,Women's,5
+San Diego St,3361,West,Women's,12
+Michigan St,3277,West,Women's,4
+WI Green Bay,3453,West,Women's,13
+NC State,3301,West,Women's,6
+Colorado,3160,West,Women's,11
+Oklahoma,3328,West,Women's,3
+High Point,3219,West,Women's,14
+Tennessee,3397,West,Women's,7
+Rice,3349,West,Women's,10
+Iowa,3234,West,Women's,2
+Vermont,3436,West,Women's,15
+UCLA,3417,South,Women's,1
+Alabama A&M,3105,South,Women's,16
+Oklahoma St,3329,South,Women's,8
+Villanova,3437,South,Women's,9
+Kentucky,3246,South,Women's,5
+Loyola MD,3259,South,Women's,12
+Ohio St,3326,South,Women's,4
+UC Irvine,3414,South,Women's,13
+Alabama,3104,South,Women's,6
+Fairfield,3193,South,Women's,11
+Duke,3181,South,Women's,3
+Miami OH,3275,South,Women's,14
+Washington,3449,South,Women's,7
+Clemson,3155,South,Women's,10
+Vanderbilt,3435,South,Women's,2
+Murray St,3293,South,Women's,15
+South Carolina,3376,Midwest,Women's,1
+Chattanooga,3151,Midwest,Women's,16
+Oregon,3332,Midwest,Women's,8
+Virginia Tech,3439,Midwest,Women's,9
+West Virginia,3452,Midwest,Women's,5
+S Dakota St,3355,Midwest,Women's,12
+Minnesota,3278,Midwest,Women's,4
+W Illinois,3442,Midwest,Women's,13
+Mississippi,3279,Midwest,Women's,6
+Columbia,3162,Midwest,Women's,11
+TCU,3395,Midwest,Women's,3
+Idaho,3225,Midwest,Women's,14
+Georgia,3208,Midwest,Women's,7
+Virginia,3438,Midwest,Women's,10
+Michigan,3276,Midwest,Women's,2
+E Kentucky,3184,Midwest,Women's,15
