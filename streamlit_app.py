@@ -103,7 +103,7 @@ st.divider()
 if st.button("🔥 Run Simulation", type="primary", use_container_width=True):
     final_four = []
     
-    [Image of NCAA basketball tournament bracket structure]
+    
     
     results_cols = st.columns(4)
     for i, region in enumerate(regions):
