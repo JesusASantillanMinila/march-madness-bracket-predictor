@@ -103,33 +103,38 @@ st.divider()
 if st.button("🔥 Run Simulation", type="primary", use_container_width=True):
     final_four = []
     
-    
-    
     results_cols = st.columns(4)
     for i, region in enumerate(regions):
         with results_cols[i]:
             st.markdown(f"### {region} Bracket")
             teams = bracket_inputs[region]
             
-            # Round 1: 1v16, 2v15, 3v14, 4v13, 5v12, 6v11, 7v10, 8v9
-            r1_matchups = [(0,15), (7,8), (4,11), (3,12), (5,10), (2,13), (6,9), (1,14)]
-            r32_teams = [predict_winner(teams[m[0]], teams[m[1]]) for m in r1_matchups]
+            # Round 1: Standard NCAA Matchups
+            # (Seed 1 vs 16), (Seed 8 vs 9), (Seed 5 vs 12), (Seed 4 vs 13)
+            # (Seed 6 vs 11), (Seed 3 vs 14), (Seed 7 vs 10), (Seed 2 vs 15)
+            r1_idx = [(0,15), (7,8), (4,11), (3,12), (5,10), (2,13), (6,9), (1,14)]
+            r32_teams = [predict_winner(teams[m[0]], teams[m[1]]) for m in r1_idx]
             
-            with st.expander("Round of 32"):
-                st.write(r32_teams)
-            
-            # Round 2 -> Sweet 16
-            s16_teams = [predict_winner(r32_teams[0], r32_teams[1]), 
-                         predict_winner(r32_teams[2], r32_teams[3]),
-                         predict_winner(r32_teams[4], r32_teams[5]),
-                         predict_winner(r32_teams[6], r32_teams[7])]
-            
-            with st.expander("Sweet 16"):
-                st.write(s16_teams)
+            with st.expander(f"View {region} Rounds"):
+                st.write("**Round of 32:**", r32_teams)
                 
-            # Elite 8
-            e8_teams = [predict_winner(s16_teams[0], s16_teams[1]),
-                        predict_winner(s16_teams[2], s16_teams[3])]
+                # Round 2 -> Sweet 16
+                s16_teams = [predict_winner(r32_teams[0], r32_teams[1]), 
+                             predict_winner(r32_teams[2], r32_teams[3]),
+                             predict_winner(r32_teams[4], r32_teams[5]),
+                             predict_winner(r32_teams[6], r32_teams[7])]
+                st.write("**Sweet 16:**", s16_teams)
+                
+                # Round 3 -> Elite 8
+                e8_teams = [predict_winner(s16_teams[0], s16_teams[1]),
+                            predict_winner(s16_teams[2], s16_teams[3])]
+                st.write("**Elite 8:**", e8_teams)
             
-            # Regional Final
-            regional_
+            # Regional Final -> Regional Champion
+            # FIXED: Ensuring variable name is consistent
+            regional_winner = predict_winner(e8_teams[0], e8_teams[1])
+            st.success(f"**{region} Champ: {regional_winner}**")
+            final_four.append(regional_winner)
+
+    st.divider()
+    # ... rest of Final Four logic ...
