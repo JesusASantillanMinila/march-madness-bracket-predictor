@@ -12,8 +12,8 @@ st.set_page_config(page_title="🏀 March Madness Bracket Predictor", layout="wi
 # ══════════════════════════════════════════════════════════════
 # CONSTANTS
 # ══════════════════════════════════════════════════════════════
-DIVISIONS     = ["East", "West", "South", "Midwest"]
-SEEDS         = list(range(1, 17))
+DIVISIONS      = ["East", "West", "South", "Midwest"]
+SEEDS          = list(range(1, 17))
 SEED_MATCHUPS = [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)]
 ROUND_LABELS  = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8"]
 FF_PAIRS      = [("East", "West"), ("South", "Midwest")]
@@ -21,7 +21,7 @@ FF_PAIRS      = [("East", "West"), ("South", "Midwest")]
 DIVISION_COLORS = {
     "East":    "#1a3a5c",
     "West":    "#5c1a1a",
-    "South":   "#1a4a2a",
+    "South":    "#1a4a2a",
     "Midwest": "#4a3a1a",
 }
 
@@ -31,7 +31,6 @@ DIVISION_COLORS = {
 scope = ["https://spreadsheets.google.com/feeds",
          "https://www.googleapis.com/auth/drive"]
 
-
 def load_all_data():
     creds_dict = st.secrets["gsheet_service_account"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -39,7 +38,7 @@ def load_all_data():
 
     book      = gc.open_by_key(st.secrets["KAGGLE_SUBMISSION_ID"])
     worksheet = book.worksheet("data")
-    table     = worksheet.get_all_values()
+    table      = worksheet.get_all_values()
     df_gsheet = pd.DataFrame(table[1:], columns=table[0])
     df_gsheet[['Team 1', 'Team 2']] = (
         df_gsheet['ID'].str.split('_', expand=True).iloc[:, [1, 2]]
@@ -80,17 +79,14 @@ def load_all_data():
 
     return df_results, df_all_teams
 
-
 def load_bracket_csv():
-    """Load teams.csv from same folder as this script, if it exists."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(here, "teams.csv")
+    """Load teams.csv from the root folder."""
+    path = "teams.csv"
     if os.path.exists(path):
         df = pd.read_csv(path)
         df.columns = [c.strip().lower() for c in df.columns]
         return df
     return None
-
 
 if 'data_loaded' not in st.session_state:
     with st.spinner("Loading data from Google Sheets & Drive…"):
@@ -117,7 +113,6 @@ def get_pred(t1, t2):
         return 1.0 - float(row.iloc[0]['Pred'])
     return None
 
-
 def predict_winner(t1, t2):
     """Return predicted winner team_id based on Pred score."""
     p = get_pred(t1, t2)
@@ -138,33 +133,23 @@ def build_empty_bracket():
     b['Champion'] = None
     return b
 
-
-def init_bracket(league):
-    key = f"bracket_{league}"
-    if key not in st.session_state:
-        st.session_state[key] = build_empty_bracket()
-    return st.session_state[key]
-
-
 def get_default_seeds(league, team_opts_local):
-    """
-    Returns {div: {seed: team_id}} for 4 divisions × 16 seeds.
-    Uses teams.csv if present; otherwise random-fills from matching league.
-    """
+    """Returns {div: {seed: team_id}} from teams.csv or random fallback."""
     defaults = {div: {s: None for s in SEEDS} for div in DIVISIONS}
     csv_df   = load_bracket_csv()
 
     if csv_df is not None and {'team_id','seed','division','league'}.issubset(set(csv_df.columns)):
         filtered = csv_df[csv_df['league'].str.strip().str.lower() == league.lower()]
-        for _, row in filtered.iterrows():
-            div  = str(row['division']).strip().title()
-            seed = int(row['seed'])
-            tid  = int(row['team_id'])
-            if div in DIVISIONS and seed in SEEDS:
-                defaults[div][seed] = tid
-        return defaults
+        if not filtered.empty:
+            for _, row in filtered.iterrows():
+                div  = str(row['division']).strip().title()
+                seed = int(row['seed'])
+                tid  = int(row['team_id'])
+                if div in DIVISIONS and seed in SEEDS:
+                    defaults[div][seed] = tid
+            return defaults
 
-    # Fallback: random fill from league team pool, no repeats
+    # Fallback: random fill from league team pool
     pool = list(team_opts_local.keys())
     random.shuffle(pool)
     idx = 0
@@ -175,6 +160,18 @@ def get_default_seeds(league, team_opts_local):
                 idx += 1
     return defaults
 
+def init_bracket(league, team_opts_local):
+    """Initializes bracket and auto-populates teams from CSV by default."""
+    key = f"bracket_{league}"
+    if key not in st.session_state:
+        b = build_empty_bracket()
+        # Auto-fill teams on first initialization
+        defaults = get_default_seeds(league, team_opts_local)
+        for div in DIVISIONS:
+            for seed in SEEDS:
+                b[div][0][seed] = defaults[div][seed]
+        st.session_state[key] = b
+    return st.session_state[key]
 
 def run_simulation(bracket):
     """Simulate all rounds automatically using Pred probabilities."""
@@ -221,8 +218,8 @@ team_options = {int(r['TeamID']): r['TeamName'] for _, r in league_teams.iterrow
 id_by_name   = {v: k for k, v in team_options.items()}
 names_sorted = ["— Select —"] + sorted(team_options.values())
 
-bracket = init_bracket(league)
-
+# Initialize bracket with league-specific team options
+bracket = init_bracket(league, team_options)
 
 def tdisplay(tid):
     if tid is None:
@@ -233,35 +230,23 @@ def tdisplay(tid):
 # 5. TEAM SELECTION — 4 divisions × 16 seeds = 64 slots
 # ══════════════════════════════════════════════════════════════
 st.markdown(
-    "<h2 style='color:#f7c948'>📝 Step 1 — Assign Your 64 Teams</h2>",
+    "<h2 style='color:#f7c948'>📝 Step 1 — Review/Assign Your 64 Teams</h2>",
     unsafe_allow_html=True)
 
-# Quick-load defaults row
-load_col, info_col = st.columns([1, 3])
-with load_col:
-    if st.button("🔄 Load from CSV / Random Fill", use_container_width=True):
-        defaults = get_default_seeds(league, team_options)
-        for div in DIVISIONS:
-            for seed in SEEDS:
-                bracket[div][0][seed] = defaults[div][seed]
-        csv_found = load_bracket_csv() is not None
-        msg = "✅ Loaded from **teams.csv**" if csv_found else "✅ Randomly filled from league pool"
-        st.success(msg)
+# Display filling status (Manual Load button removed)
+total_filled = sum(1 for d in DIVISIONS for s in SEEDS if bracket[d][0][s] is not None)
+pct = int(total_filled / 64 * 100)
+status_msg = "✅ Teams loaded from **teams.csv**" if load_bracket_csv() is not None else "⚠️ teams.csv not found (Random Fill used)"
 
-with info_col:
-    total_filled = sum(1 for d in DIVISIONS for s in SEEDS if bracket[d][0][s] is not None)
-    pct = int(total_filled / 64 * 100)
-    st.markdown(
-        f"<div style='padding:10px;background:#1e2a1e;border-radius:6px;"
-        f"border-left:4px solid #0d6e2e'>"
-        f"<b style='color:#d4edda'>{total_filled}/64 teams assigned ({pct}%)</b><br>"
-        f"<span style='color:#aaa;font-size:12px'>"
-        f"teams.csv columns: <code>team_name, team_id, seed, division, league</code></span></div>",
-        unsafe_allow_html=True)
+st.markdown(
+    f"<div style='padding:10px;background:#1e2a1e;border-radius:6px;"
+    f"border-left:4px solid #0d6e2e'>"
+    f"<b style='color:#d4edda'>{total_filled}/64 teams assigned ({pct}%)</b><br>"
+    f"<span style='color:#aaa;font-size:12px'>{status_msg}</span></div>",
+    unsafe_allow_html=True)
 
-# Four division columns side-by-side for compact entry
+# Four division columns side-by-side
 st.markdown("<br>", unsafe_allow_html=True)
-
 div_tabs = st.tabs([f"🗂 {d} Region" for d in DIVISIONS])
 
 for tab, div in zip(div_tabs, DIVISIONS):
@@ -270,12 +255,9 @@ for tab, div in zip(div_tabs, DIVISIONS):
         st.markdown(
             f"<div style='background:{bg};padding:10px 16px;border-radius:8px;"
             f"margin-bottom:14px'><b style='color:white;font-size:16px'>"
-            f"🏟 {div} Region</b> &nbsp;"
-            f"<span style='color:#ccc;font-size:12px'>"
-            f"Seeds 1–16 · 1=strongest, 16=weakest</span></div>",
+            f"🏟 {div} Region</b></div>",
             unsafe_allow_html=True)
 
-        # Show matchup preview alongside seed entry
         col_entry, col_preview = st.columns([2, 1])
 
         with col_entry:
@@ -294,7 +276,7 @@ for tab, div in zip(div_tabs, DIVISIONS):
                     bracket[div][0][seed] = id_by_name.get(choice) if choice != "— Select —" else None
 
         with col_preview:
-            st.markdown("**First Round Matchups Preview**")
+            st.markdown("**Matchup Preview**")
             for s1, s2 in SEED_MATCHUPS:
                 n1 = tdisplay(bracket[div][0][s1])
                 n2 = tdisplay(bracket[div][0][s2])
@@ -302,11 +284,9 @@ for tab, div in zip(div_tabs, DIVISIONS):
                 c2 = "#ccc" if n2 != "TBD" else "#666"
                 st.markdown(
                     f"<div style='font-size:12px;padding:3px 0;border-bottom:1px solid #333'>"
-                    f"<span style='color:#aaa'>#{s1}</span> "
-                    f"<span style='color:{c1}'>{n1}</span>"
+                    f"<span style='color:#aaa'>#{s1}</span> <span style='color:{c1}'>{n1}</span>"
                     f" <span style='color:#666'>vs</span> "
-                    f"<span style='color:#aaa'>#{s2}</span> "
-                    f"<span style='color:{c2}'>{n2}</span></div>",
+                    f"<span style='color:#aaa'>#{s2}</span> <span style='color:{c2}'>{n2}</span></div>",
                     unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
@@ -335,8 +315,7 @@ if reset_btn:
 if run_btn:
     total_filled = sum(1 for d in DIVISIONS for s in SEEDS if bracket[d][0][s] is not None)
     if total_filled < 64:
-        st.warning(f"⚠️ Only {total_filled}/64 teams assigned. "
-                   "Please fill remaining seeds or use 'Load from CSV / Random Fill' above.")
+        st.warning(f"⚠️ Only {total_filled}/64 teams assigned. Please check your team assignments.")
     else:
         bracket = run_simulation(bracket)
         st.session_state[f"bracket_{league}"] = bracket
@@ -369,21 +348,15 @@ def matchup_card(t1, t2, winner, seed_label=""):
     st.markdown(
         f"<div style='border:1px solid #444;border-radius:8px;overflow:hidden;"
         f"margin-bottom:8px;font-size:13px'>"
-        f"{label_html}"
-        f"{row(t1, n1, p1)}"
-        f"{row(t2, n2, p2)}"
-        f"</div>",
+        f"{label_html}{row(t1, n1, p1)}{row(t2, n2, p2)}</div>",
         unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # 8. BRACKET RESULTS DISPLAY
 # ══════════════════════════════════════════════════════════════
 st.markdown("---")
-st.markdown(
-    "<h2 style='color:#f7c948'>📊 Step 3 — Bracket Results</h2>",
-    unsafe_allow_html=True)
+st.markdown("<h2 style='color:#f7c948'>📊 Step 3 — Bracket Results</h2>", unsafe_allow_html=True)
 
-# ── 8a. Division overview (all 4 at once) ──
 st.markdown("### 🗂 Divisional Results")
 div_result_tabs = st.tabs([f"🏟 {d}" for d in DIVISIONS])
 
@@ -403,12 +376,10 @@ for tab, div in zip(div_result_tabs, DIVISIONS):
                 with cols[slot % min(num_slots, 4)]:
                     if rnd == 1:
                         s1, s2 = SEED_MATCHUPS[slot]
-                        t1 = bracket[div][0][s1]
-                        t2 = bracket[div][0][s2]
+                        t1, t2 = bracket[div][0][s1], bracket[div][0][s2]
                         slbl = f"#{s1} vs #{s2}"
                     else:
-                        t1 = bracket[div][rnd-1].get(slot * 2)
-                        t2 = bracket[div][rnd-1].get(slot * 2 + 1)
+                        t1, t2 = bracket[div][rnd-1].get(slot * 2), bracket[div][rnd-1].get(slot * 2 + 1)
                         slbl = ""
                     matchup_card(t1, t2, bracket[div][rnd].get(slot), slbl)
             st.markdown("<br>", unsafe_allow_html=True)
@@ -421,30 +392,20 @@ for tab, div in zip(div_result_tabs, DIVISIONS):
                 f"color:white;font-size:17px;font-weight:700'>"
                 f"🏆 {div} Regional Champion: {tdisplay(reg_champ)}</div>",
                 unsafe_allow_html=True)
-        else:
-            st.info("Run simulation to reveal the Regional Champion.")
 
-# ── 8b. Final Four ────────────────────────────────────────────
 st.markdown("---")
 st.markdown("### 🏟 Final Four")
-
 ff_cols = st.columns(2)
 for i, (div_a, div_b) in enumerate(FF_PAIRS):
     with ff_cols[i]:
         st.markdown(f"**{div_a} vs {div_b}**")
-        t1 = bracket[div_a][4].get(0)
-        t2 = bracket[div_b][4].get(0)
-        matchup_card(t1, t2, bracket['FF'].get(i),
-                     f"{div_a} Champion vs {div_b} Champion")
+        t1, t2 = bracket[div_a][4].get(0), bracket[div_b][4].get(0)
+        matchup_card(t1, t2, bracket['FF'].get(i), f"{div_a} vs {div_b}")
 
-# ── 8c. Championship ──────────────────────────────────────────
 st.markdown("---")
 st.markdown("### 🥇 National Championship")
-
-t1 = bracket['FF'].get(0)
-t2 = bracket['FF'].get(1)
-matchup_card(t1, t2, bracket.get('Champion'),
-             "Final Four Winner vs Final Four Winner")
+t1, t2 = bracket['FF'].get(0), bracket['FF'].get(1)
+matchup_card(t1, t2, bracket.get('Champion'), "Championship")
 
 champ = bracket.get('Champion')
 if champ:
@@ -454,8 +415,7 @@ if champ:
         f"background:linear-gradient(135deg,#f7971e,#ffd200);color:#111;"
         f"font-size:30px;font-weight:800;letter-spacing:1px;margin-top:16px'>"
         f"🏆 {league} CHAMPION<br><span style='font-size:36px'>{tdisplay(champ)}</span> 🏆"
-        f"</div>",
-        unsafe_allow_html=True)
+        f"</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # 9. FULL SUMMARY TABLE
@@ -469,31 +429,25 @@ for div in DIVISIONS:
         for slot in range(16 // (2 ** rnd)):
             if rnd == 1:
                 s1, s2 = SEED_MATCHUPS[slot]
-                t1 = bracket[div][0][s1]
-                t2 = bracket[div][0][s2]
+                t1, t2 = bracket[div][0][s1], bracket[div][0][s2]
                 mlbl = f"#{s1} vs #{s2}"
             else:
-                t1 = bracket[div][rnd-1].get(slot * 2)
-                t2 = bracket[div][rnd-1].get(slot * 2 + 1)
+                t1, t2 = bracket[div][rnd-1].get(slot * 2), bracket[div][rnd-1].get(slot * 2 + 1)
                 mlbl = f"Game {slot+1}"
             pred   = get_pred(t1, t2)
             winner = bracket[div][rnd].get(slot)
             rows.append({
-                "Division":       div,
-                "Round":          ROUND_LABELS[rnd-1],
-                "Matchup":        mlbl,
-                "Team 1":         tdisplay(t1),
-                "Team 2":         tdisplay(t2),
-                "Pred T1 Win%":   f"{pred*100:.1f}%" if pred is not None else "N/A",
-                "Winner 🏆":      tdisplay(winner) if winner else "—",
+                "Division": div, "Round": ROUND_LABELS[rnd-1], "Matchup": mlbl,
+                "Team 1": tdisplay(t1), "Team 2": tdisplay(t2),
+                "Pred T1 Win%": f"{pred*100:.1f}%" if pred is not None else "N/A",
+                "Winner 🏆": tdisplay(winner) if winner else "—",
             })
 
 for i, (div_a, div_b) in enumerate(FF_PAIRS):
     t1, t2 = bracket[div_a][4].get(0), bracket[div_b][4].get(0)
-    pred   = get_pred(t1, t2)
+    pred = get_pred(t1, t2)
     rows.append({
-        "Division": "Final Four", "Round": f"{div_a} vs {div_b}",
-        "Matchup": "Semifinal",
+        "Division": "Final Four", "Round": f"{div_a} vs {div_b}", "Matchup": "Semifinal",
         "Team 1": tdisplay(t1), "Team 2": tdisplay(t2),
         "Pred T1 Win%": f"{pred*100:.1f}%" if pred is not None else "N/A",
         "Winner 🏆": tdisplay(bracket['FF'].get(i)) if bracket['FF'].get(i) else "—",
@@ -502,15 +456,13 @@ for i, (div_a, div_b) in enumerate(FF_PAIRS):
 t1, t2 = bracket['FF'].get(0), bracket['FF'].get(1)
 pred = get_pred(t1, t2)
 rows.append({
-    "Division": "Championship", "Round": "Final",
-    "Matchup": "National Championship",
+    "Division": "Championship", "Round": "Final", "Matchup": "National Championship",
     "Team 1": tdisplay(t1), "Team 2": tdisplay(t2),
     "Pred T1 Win%": f"{pred*100:.1f}%" if pred is not None else "N/A",
     "Winner 🏆": tdisplay(bracket.get('Champion')) if bracket.get('Champion') else "—",
 })
 
 df_summary = pd.DataFrame(rows)
-
 
 def hl(row):
     s = [''] * len(row)
@@ -519,9 +471,4 @@ def hl(row):
         s[wi] = "background-color:#155724;color:#d4edda;font-weight:700"
     return s
 
-
-st.dataframe(
-    df_summary.style.apply(hl, axis=1),
-    use_container_width=True,
-    hide_index=True
-)
+st.dataframe(df_summary.style.apply(hl, axis=1), use_container_width=True, hide_index=True)
