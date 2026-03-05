@@ -61,24 +61,39 @@ def build_lookup_table():
 
 df_lookup, all_team_names = build_lookup_table()
 
-# Prediction Engine
-def predict_winner(t1, t2):
+# Prediction Engine: Returns (WinnerName, ProbForTeam1, WinnerSeed)
+def get_matchup_result(t1, t2, s1, s2):
     # Check T1 vs T2
     match = df_lookup[(df_lookup['TeamName_1'] == t1) & (df_lookup['TeamName_2'] == t2)]
     if not match.empty:
-        return t1 if match.iloc[0]['Pred'] >= 0.5 else t2
+        p1 = float(match.iloc[0]['Pred'])
+        if p1 >= 0.5:
+            return t1, p1, s1
+        else:
+            return t2, p1, s2
     
     # Check T2 vs T1 (Inverse)
     match = df_lookup[(df_lookup['TeamName_1'] == t2) & (df_lookup['TeamName_2'] == t1)]
     if not match.empty:
-        # If Pred is for T2 winning over T1
-        return t2 if match.iloc[0]['Pred'] >= 0.5 else t1
-    
-    return t1 # Fallback
+        p2 = float(match.iloc[0]['Pred'])
+        p1 = 1 - p2 # Probability for T1
+        if p1 >= 0.5:
+            return t1, p1, s1
+        else:
+            return t2, p1, s2
+            
+    return t1, 0.5, s1 # Fallback
+
+def format_matchup_html(t1, t2, p1, s1, s2):
+    p2 = 1 - p1
+    # Formatting: Bold and Underline if probability >= 50%
+    line1 = f"<u>**Seed {s1}: {t1} {p1:.0%}**</u>" if p1 >= 0.5 else f"Seed {s1}: {t1} {p1:.0%}"
+    line2 = f"<u>**Seed {s2}: {t2} {p2:.0%}**</u>" if p2 > 0.5 else f"Seed {s2}: {t2} {p2:.0%}"
+    return f"{line1} vs {line2}"
 
 # --- UI INTERFACE ---
 st.title("🏀 March Madness Bracket Simulator")
-st.markdown("Select your 64 teams and let the model predict the path to the championship.")
+st.markdown("Select your 64 teams and watch the model predict every round with probabilities.")
 
 # Region Setup
 regions = ["East", "West", "South", "Midwest"]
@@ -93,48 +108,84 @@ for i, region in enumerate(regions):
         st.subheader(f"Region: {region}")
         region_teams = []
         for seed in range(1, 17):
-            # Default selection shifts slightly so they aren't all the same team on load
-            t = st.selectbox(f"Seed {seed}", all_team_names, index=(seed + i*5) % len(all_team_names), key=f"{region}_{seed}")
+            t = st.selectbox(f"Seed {seed}", all_team_names, index=(seed + i*17) % len(all_team_names), key=f"{region}_{seed}")
             region_teams.append(t)
         bracket_inputs[region] = region_teams
 
 st.divider()
 
 if st.button("🔥 Run Simulation", type="primary", use_container_width=True):
-    final_four = []
+    final_four_data = [] # List of (TeamName, Seed)
     
-    results_cols = st.columns(4)
+    res_cols = st.columns(4)
     for i, region in enumerate(regions):
-        with results_cols[i]:
-            st.markdown(f"### {region} Bracket")
+        with res_cols[i]:
+            st.header(f"{region} Region")
             teams = bracket_inputs[region]
             
-            # Round 1: Standard NCAA Matchups
-            # (Seed 1 vs 16), (Seed 8 vs 9), (Seed 5 vs 12), (Seed 4 vs 13)
-            # (Seed 6 vs 11), (Seed 3 vs 14), (Seed 7 vs 10), (Seed 2 vs 15)
+            # Round 1 (64) -> Standard NCAA Matchups
             r1_idx = [(0,15), (7,8), (4,11), (3,12), (5,10), (2,13), (6,9), (1,14)]
-            r32_teams = [predict_winner(teams[m[0]], teams[m[1]]) for m in r1_idx]
+            st.markdown("#### Round of 64")
+            r32_results = []
+            for m in r1_idx:
+                res = get_matchup_result(teams[m[0]], teams[m[1]], m[0]+1, m[1]+1)
+                st.markdown(format_matchup_html(teams[m[0]], teams[m[1]], res[1], m[0]+1, m[1]+1), unsafe_allow_html=True)
+                r32_results.append(res) # (WinnerName, Prob, WinnerSeed)
+
+            # Round 2 (32)
+            st.markdown("#### Round of 32")
+            s16_results = []
+            for j in range(0, 8, 2):
+                t1, p1_old, s1 = r32_results[j]
+                t2, p2_old, s2 = r32_results[j+1]
+                res = get_matchup_result(t1, t2, s1, s2)
+                st.markdown(format_matchup_html(t1, t2, res[1], s1, s2), unsafe_allow_html=True)
+                s16_results.append(res)
+
+            # Sweet 16
+            st.markdown("#### Sweet 16")
+            e8_results = []
+            for j in range(0, 4, 2):
+                t1, p1_old, s1 = s16_results[j]
+                t2, p2_old, s2 = s16_results[j+1]
+                res = get_matchup_result(t1, t2, s1, s2)
+                st.markdown(format_matchup_html(t1, t2, res[1], s1, s2), unsafe_allow_html=True)
+                e8_results.append(res)
+
+            # Elite 8
+            st.markdown("#### Elite 8")
+            t1, p1_old, s1 = e8_results[0]
+            t2, p2_old, s2 = e8_results[1]
+            reg_champ_res = get_matchup_result(t1, t2, s1, s2)
+            st.markdown(format_matchup_html(t1, t2, reg_champ_res[1], s1, s2), unsafe_allow_html=True)
             
-            with st.expander(f"View {region} Rounds"):
-                st.write("**Round of 32:**", r32_teams)
-                
-                # Round 2 -> Sweet 16
-                s16_teams = [predict_winner(r32_teams[0], r32_teams[1]), 
-                             predict_winner(r32_teams[2], r32_teams[3]),
-                             predict_winner(r32_teams[4], r32_teams[5]),
-                             predict_winner(r32_teams[6], r32_teams[7])]
-                st.write("**Sweet 16:**", s16_teams)
-                
-                # Round 3 -> Elite 8
-                e8_teams = [predict_winner(s16_teams[0], s16_teams[1]),
-                            predict_winner(s16_teams[2], s16_teams[3])]
-                st.write("**Elite 8:**", e8_teams)
-            
-            # Regional Final -> Regional Champion
-            # FIXED: Ensuring variable name is consistent
-            regional_winner = predict_winner(e8_teams[0], e8_teams[1])
-            st.success(f"**{region} Champ: {regional_winner}**")
-            final_four.append(regional_winner)
+            st.success(f"**{region} Champ: {reg_champ_res[0]}**")
+            final_four_data.append((reg_champ_res[0], reg_champ_res[2]))
 
     st.divider()
-    # ... rest of Final Four logic ...
+    st.header("🏆 The Final Four")
+    f_col1, f_col2 = st.columns(2)
+    
+    with f_col1:
+        st.subheader("National Semifinals")
+        # Game 1
+        ga_t1, ga_s1 = final_four_data[0]
+        ga_t2, ga_s2 = final_four_data[1]
+        res1 = get_matchup_result(ga_t1, ga_t2, ga_s1, ga_s2)
+        st.markdown(format_matchup_html(ga_t1, ga_t2, res1[1], f"{ga_s1}({regions[0]})", f"{ga_s2}({regions[1]})"), unsafe_allow_html=True)
+        
+        # Game 2
+        gb_t1, gb_s1 = final_four_data[2]
+        gb_t2, gb_s2 = final_four_data[3]
+        res2 = get_matchup_result(gb_t1, gb_t2, gb_s1, gb_s2)
+        st.markdown(format_matchup_html(gb_t1, gb_t2, res2[1], f"{gb_s1}({regions[2]})", f"{gb_s2}({regions[3]})"), unsafe_allow_html=True)
+
+    with f_col2:
+        st.subheader("National Championship")
+        final_t1, final_s1 = res1[0], res1[2]
+        final_t2, final_s2 = res2[0], res2[2]
+        champ_res = get_matchup_result(final_t1, final_t2, final_s1, final_s2)
+        st.markdown(format_matchup_html(final_t1, final_t2, champ_res[1], "Finalist", "Finalist"), unsafe_allow_html=True)
+        
+        st.balloons()
+        st.title(f"👑 {champ_res[0]}")
