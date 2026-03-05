@@ -99,3 +99,81 @@ df_team_results['League'] = df_team_results['League_1M'].combine_first(df_team_r
 df_team_results = df_team_results[['ID', 'Pred', 'Team Name 1', 'Team Name 2', 'League']]
 
 st.dataframe(df_team_results, use_container_width=True)
+
+
+
+# --- EXISTING DATA LOADING (Simplified for snippet) ---
+# (Keep your existing load_all_data() and session_state logic here)
+
+def get_prediction(team1, team2, df_probs):
+    """Finds the probability of team1 beating team2 from the gsheet data."""
+    # Kaggle IDs are usually formatted as 'Year_LowerID_HigherID'
+    # For this simulation, we'll look for the match in your joined df_team_results
+    match = df_probs[((df_probs['Team Name 1'] == team1) & (df_probs['Team Name 2'] == team2)) |
+                     ((df_probs['Team Name 1'] == team2) & (df_probs['Team Name 2'] == team1))]
+    
+    if not match.empty:
+        pred = float(match.iloc[0]['Pred'])
+        # If team1 is actually 'Team 2' in the CSV, the probability is 1 - Pred
+        if match.iloc[0]['Team Name 1'] == team2:
+            return 1 - pred
+        return pred
+    return 0.5  # Default if match not found
+
+# --- UI SETTINGS ---
+st.sidebar.header("Tournament Settings")
+league = st.sidebar.selectbox("Select League", ["Men's League", "Women's League"])
+
+# Filter data based on league
+df_filtered = df_team_results[df_team_results['League'] == league].reset_index(drop=True)
+
+# 1. INITIAL TEAM SELECTION (Top 64 based on available data)
+# In a real scenario, you'd provide a multiselect or a predefined list
+initial_teams = list(pd.unique(df_filtered[['Team Name 1', 'Team Name 2']].values.ravel('K')))[:64]
+
+st.subheader(f"🏀 {league} Bracket Simulation")
+
+if len(initial_teams) < 64:
+    st.warning(f"Only {len(initial_teams)} teams found in data. Need 64 for a full bracket.")
+    # For demo purposes, we'll proceed with what we have
+    num_teams = 2**int(np.log2(len(initial_teams))) 
+    current_round_teams = initial_teams[:num_teams]
+else:
+    current_round_teams = initial_teams[:64]
+
+# --- SIMULATION LOGIC ---
+bracket_results = {}
+round_names = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship"]
+temp_teams = current_round_teams.copy()
+
+# Visualize rounds in columns
+cols = st.columns(len(round_names))
+
+round_idx = 0
+while len(temp_teams) > 1:
+    winners = []
+    with cols[round_idx]:
+        st.caption(f"**{round_names[round_idx]}**")
+        for i in range(0, len(temp_teams), 2):
+            t1 = temp_teams[i]
+            t2 = temp_teams[i+1]
+            
+            # Simulate match
+            prob = get_prediction(t1, t2, df_filtered)
+            winner = t1 if prob >= 0.5 else t2
+            winners.append(winner)
+            
+            # Display Matchup
+            st.info(f"{t1} vs {t2}  \n**Winner: {winner}**")
+            
+    temp_teams = winners
+    round_idx += 1
+
+# Display Winner
+if len(temp_teams) == 1:
+    st.balloons()
+    st.success(f"🏆 **Tournament Champion: {temp_teams[0]}**")
+
+# --- DATA EDITOR FOR USERS ---
+with st.expander("Edit Initial Matchups/Predictions"):
+    edited_df = st.data_editor(df_filtered)
