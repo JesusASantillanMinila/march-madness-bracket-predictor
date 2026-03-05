@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import gdown
@@ -38,9 +37,22 @@ def load_all_data():
 
     return df_gsheet, df_m_teams, df_w_teams
 
-st.title("🏀 March Madness Bracket Predictor")
+# --- STATE MANAGEMENT LOGIC ---
+# This checks if the keys already exist in session_state. 
+# If not, it runs the loader once and stores them.
+if 'df_gsheet' not in st.session_state:
+    df_gsheet, df_m_teams, df_w_teams = load_all_data()
+    st.session_state.df_gsheet = df_gsheet
+    st.session_state.df_m_teams = df_m_teams
+    st.session_state.df_w_teams = df_w_teams
+else:
+    # If they already exist, we just pull them from memory
+    df_gsheet = st.session_state.df_gsheet
+    df_m_teams = st.session_state.df_m_teams
+    df_w_teams = st.session_state.df_w_teams
 
-df_gsheet, df_m_teams, df_w_teams = load_all_data()
+# --- UI AND JOIN LOGIC (Unchanged) ---
+st.title("🏀 March Madness Bracket Predictor")
 
 col1, col2 = st.columns(2)
 
@@ -58,7 +70,6 @@ st.divider()
 
 st.subheader("👩 Women's Team Names (CSV)")
 st.dataframe(df_w_teams, use_container_width=True)
-
 
 st.divider()
 
@@ -88,73 +99,3 @@ df_team_results['League'] = df_team_results['League_1M'].combine_first(df_team_r
 df_team_results = df_team_results[['ID', 'Pred', 'Team Name 1', 'Team Name 2', 'League']]
 
 st.dataframe(df_team_results, use_container_width=True)
-
-
-# --- NEW: Simulation Logic ---
-def get_win_probability(team1, team2, df_probs):
-    """Looks up the prediction value for two teams."""
-    # Match names back to IDs or use the 'ID' string format: YYYY_ID1_ID2
-    # For simplicity in this demo, we assume df_probs has 'Team Name 1', 'Team Name 2', and 'Pred'
-    match = df_probs[((df_probs['Team Name 1'] == team1) & (df_probs['Team Name 2'] == team2)) |
-                     ((df_probs['Team Name 1'] == team2) & (df_probs['Team Name 2'] == team1))]
-    
-    if match.empty:
-        return 0.5  # Default if no data found
-    
-    prob = float(match.iloc[0]['Pred'])
-    # If the order is swapped in the lookup, invert the probability
-    if match.iloc[0]['Team Name 1'] == team2:
-        prob = 1 - prob
-    return prob
-
-def simulate_round(teams, df_probs):
-    winners = []
-    matchups = []
-    for i in range(0, len(teams), 2):
-        t1, t2 = teams[i], teams[i+1]
-        prob = get_win_probability(t1, t2, df_probs)
-        # Simulation: If Pred > 0.5, Team 1 is favored
-        winner = t1 if prob >= 0.5 else t2
-        winners.append(winner)
-        matchups.append(f"{t1} vs {t2}")
-    return winners, matchups
-
-# --- UI Setup ---
-st.title("🏀 Interactive Bracket Simulator")
-
-# 1. League Filter
-league = st.selectbox("Select League", ["Men's League", "Women's League"])
-filtered_results = df_team_results[df_team_results['League'] == league]
-
-# 2. Team Selection (Initial 64)
-# Get unique list of all possible teams in the data
-all_teams = sorted(list(set(filtered_results['Team Name 1'].tolist() + filtered_results['Team Name 2'].tolist())))
-
-st.subheader("📝 Seed the Tournament")
-selected_64 = st.multiselect("Select 64 Teams (in seed order)", all_teams, max_selections=64)
-
-if len(selected_64) == 64:
-    if st.button("🚀 Run Simulation"):
-        # We will store rounds in a list of lists
-        bracket_rounds = [selected_64]
-        current_teams = selected_64
-        
-        while len(current_teams) > 1:
-            current_teams, _ = simulate_round(current_teams, filtered_results)
-            bracket_rounds.append(current_teams)
-        
-        # 3. Bracket Visualization
-        st.divider()
-        cols = st.columns(len(bracket_rounds))
-        titles = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final 4", "Championship", "Winner"]
-        
-        for i, round_teams in enumerate(bracket_rounds):
-            with cols[i]:
-                st.markdown(f"### {titles[i]}")
-                for team in round_teams:
-                    st.info(team)
-                    # Add spacing to mimic bracket height
-                    st.write("") 
-
-else:
-    st.warning(f"Please select exactly 64 teams to begin. Currently selected: {len(selected_64)}")
