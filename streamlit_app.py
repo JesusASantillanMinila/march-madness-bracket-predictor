@@ -79,4 +79,12 @@ df_team_results = pd.merge(df_team_results, df_w_teams, left_on = 'Team 2', righ
 df_team_results.rename(columns={'TeamName':'TeamName_2W'}, inplace=True)
 df_team_results = df_team_results[['ID','Pred','Team 1','Team 2','TeamName_1M','TeamName_2M','TeamName_1W','TeamName_2W','League_1M','League_1W']]
 
+# Coalesce the columns
+df_team_results['Team Name 1'] = df_team_results['TeamName_1M'].combine_first(df_team_results['TeamName_1W'])
+df_team_results['Team Name 2'] = df_team_results['TeamName_2M'].combine_first(df_team_results['TeamName_2W'])
+df_team_results['League'] = df_team_results['League_1M'].combine_first(df_team_results['League_1W'])
+
+# Filter out intermediate columns
+df_team_results = df_team_results[['ID', 'Pred', 'Team Name 1', 'Team Name 2', 'League']]
+
 st.dataframe(df_team_results, use_container_width=True)
