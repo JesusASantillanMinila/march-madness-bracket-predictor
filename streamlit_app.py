@@ -295,7 +295,7 @@ st.markdown(
 
 bracket_mode = st.radio(
     "🎯 Pick Mode",
-    ["🤖 Auto-Simulate (Model Picks)", "✍️ Manual Picks (Your Choices)"],
+    [ "✍️ Manual Picks (Your Choices)","🤖 Auto-Simulate (Model Picks)"],
     horizontal=True,
     key="bracket_mode"
 )
