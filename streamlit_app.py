@@ -89,7 +89,7 @@ def load_bracket_csv():
     return None
 
 if 'data_loaded' not in st.session_state:
-    with st.spinner("Loading data from Google Sheets & Drive…"):
+    with st.spinner("Loading Data…"):
         df_results, df_all_teams = load_all_data()
     st.session_state.df_results   = df_results
     st.session_state.df_all_teams = df_all_teams
