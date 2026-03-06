@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd 
+import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import gdown
@@ -15,7 +15,7 @@ st.set_page_config(page_title="🏀 March Madness Bracket Predictor", layout="wi
 DIVISIONS      = ["East", "West", "South", "Midwest"]
 SEEDS          = list(range(1, 17))
 SEED_MATCHUPS = [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)]
-ROUND_LABELS  = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8"]
+ROUND_LABELS  = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Elite 8 Winner"]
 FF_PAIRS      = [("East", "West"), ("South", "Midwest")]
 
 DIVISION_COLORS = {
@@ -165,7 +165,6 @@ def init_bracket(league, team_opts_local):
     key = f"bracket_{league}"
     if key not in st.session_state:
         b = build_empty_bracket()
-        # Auto-fill teams on first initialization
         defaults = get_default_seeds(league, team_opts_local)
         for div in DIVISIONS:
             for seed in SEEDS:
@@ -218,7 +217,6 @@ team_options = {int(r['TeamID']): r['TeamName'] for _, r in league_teams.iterrow
 id_by_name   = {v: k for k, v in team_options.items()}
 names_sorted = ["— Select —"] + sorted(team_options.values())
 
-# Initialize bracket with league-specific team options
 bracket = init_bracket(league, team_options)
 
 def tdisplay(tid):
@@ -233,7 +231,6 @@ st.markdown(
     "<h2 style='color:#f7c948'>📝 Step 1 — Review/Assign Your 64 Teams</h2>",
     unsafe_allow_html=True)
 
-# Display filling status (Manual Load button removed)
 total_filled = sum(1 for d in DIVISIONS for s in SEEDS if bracket[d][0][s] is not None)
 pct = int(total_filled / 64 * 100)
 status_msg = "✅ Teams loaded from **teams.csv**" if load_bracket_csv() is not None else "⚠️ teams.csv not found (Random Fill used)"
@@ -245,7 +242,6 @@ st.markdown(
     f"<span style='color:#aaa;font-size:12px'>{status_msg}</span></div>",
     unsafe_allow_html=True)
 
-# Four division columns side-by-side
 st.markdown("<br>", unsafe_allow_html=True)
 div_tabs = st.tabs([f"🗂 {d} Region" for d in DIVISIONS])
 
@@ -290,16 +286,28 @@ for tab, div in zip(div_tabs, DIVISIONS):
                     unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
-# 6. RUN SIMULATION BUTTON
+# 6. MODE SELECTION & CONTROLS
 # ══════════════════════════════════════════════════════════════
 st.markdown("---")
 st.markdown(
-    "<h2 style='color:#f7c948'>🚀 Step 2 — Run Simulation</h2>",
+    "<h2 style='color:#f7c948'>🚀 Step 2 — Build Your Bracket</h2>",
     unsafe_allow_html=True)
+
+bracket_mode = st.radio(
+    "🎯 Pick Mode",
+    ["🤖 Auto-Simulate (Model Picks)", "✍️ Manual Picks (Your Choices)"],
+    horizontal=True,
+    key="bracket_mode"
+)
+is_manual = bracket_mode == "✍️ Manual Picks (Your Choices)"
+
+if is_manual:
+    st.info("👇 **Manual Mode**: Pick your winner for each matchup below. Win probabilities are shown to guide your choices.")
 
 c1, c2, c3 = st.columns([1.2, 1, 4])
 with c1:
-    run_btn = st.button("▶️ Run Full Bracket", type="primary", use_container_width=True)
+    run_btn = st.button("▶️ Run Full Bracket", type="primary", use_container_width=True,
+                        disabled=is_manual)
 with c2:
     reset_btn = st.button("🔁 Reset Results", use_container_width=True)
 
@@ -310,9 +318,11 @@ if reset_btn:
                 bracket[div][rnd][slot] = None
     bracket['FF']       = {0: None, 1: None}
     bracket['Champion'] = None
+    st.session_state[f"bracket_{league}"] = bracket
     st.success("Bracket results cleared. Team assignments kept.")
+    st.rerun()
 
-if run_btn:
+if run_btn and not is_manual:
     total_filled = sum(1 for d in DIVISIONS for s in SEEDS if bracket[d][0][s] is not None)
     if total_filled < 64:
         st.warning(f"⚠️ Only {total_filled}/64 teams assigned. Please check your team assignments.")
@@ -322,7 +332,22 @@ if run_btn:
         st.success("✅ Simulation complete! See results below.")
 
 # ══════════════════════════════════════════════════════════════
-# 7. MATCHUP CARD RENDERER
+# 7. HELPER: WIN PROBABILITY BADGE
+# ══════════════════════════════════════════════════════════════
+def prob_badge(prob, is_pick=False):
+    """Return an HTML badge showing win probability."""
+    if prob is None:
+        return "<span style='color:#888;font-size:11px'>N/A</span>"
+    color = "#d4edda" if prob >= 0.5 else "#f8d7da"
+    bg    = "#155724" if prob >= 0.5 else "#721c24"
+    if is_pick:
+        color = "#fff9c4"
+        bg    = "#856404"
+    return (f"<span style='background:{bg};color:{color};padding:2px 7px;"
+            f"border-radius:10px;font-size:11px;font-weight:600'>{prob*100:.1f}%</span>")
+
+# ══════════════════════════════════════════════════════════════
+# 8. MATCHUP CARD RENDERER
 # ══════════════════════════════════════════════════════════════
 def matchup_card(t1, t2, winner, seed_label=""):
     pred = get_pred(t1, t2)
@@ -352,10 +377,96 @@ def matchup_card(t1, t2, winner, seed_label=""):
         unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
-# 8. BRACKET RESULTS DISPLAY
+# 9. MANUAL PICK WIDGET
+# ══════════════════════════════════════════════════════════════
+def manual_pick_widget(t1, t2, widget_key, current_winner=None):
+    """
+    Show a pick widget for a matchup. Returns the selected winner team_id.
+    Displays win probability for each team to guide the user.
+    """
+    n1   = tdisplay(t1)
+    n2   = tdisplay(t2)
+    pred = get_pred(t1, t2)
+
+    if t1 is None and t2 is None:
+        st.markdown("<span style='color:#666;font-size:12px'>No teams set</span>",
+                    unsafe_allow_html=True)
+        return None
+
+    if t1 is None or t2 is None:
+        only_team = t1 or t2
+        st.markdown(
+            f"<div style='padding:6px 10px;background:#1e2a1e;border-radius:6px;"
+            f"color:#d4edda;font-size:12px'>✅ Advances: {tdisplay(only_team)}</div>",
+            unsafe_allow_html=True)
+        return only_team
+
+    # Build option labels with probability
+    if pred is not None:
+        p1 = pred * 100
+        p2 = (1 - pred) * 100
+        opt1 = f"{n1}  ({p1:.1f}% win prob)"
+        opt2 = f"{n2}  ({p2:.1f}% win prob)"
+    else:
+        opt1 = n1
+        opt2 = n2
+
+    options  = [opt1, opt2]
+    # Map current winner back to option index
+    if current_winner == t1:
+        curr_idx = 0
+    elif current_winner == t2:
+        curr_idx = 1
+    else:
+        curr_idx = 0  # default to first
+
+    choice_label = st.radio(
+        "Pick winner:",
+        options,
+        index=curr_idx,
+        key=widget_key,
+        label_visibility="collapsed"
+    )
+
+    # Highlight the probability of the pick
+    if pred is not None:
+        pick_is_t1 = (choice_label == opt1)
+        pick_prob  = pred if pick_is_t1 else (1 - pred)
+        model_pick = t1 if pred >= 0.5 else t2
+        pick_tid   = t1 if pick_is_t1 else t2
+
+        if pick_tid == model_pick:
+            badge_color = "#1e2a1e"
+            badge_text_color = "#8bc34a"
+            badge_label = f"✅ Agrees with model ({pick_prob*100:.1f}% win prob)"
+        else:
+            badge_color = "#2a1e1e"
+            badge_text_color = "#ff8a80"
+            badge_label = f"⚠️ Upset pick! Model gives only {pick_prob*100:.1f}% win prob"
+
+        st.markdown(
+            f"<div style='padding:4px 10px;background:{badge_color};"
+            f"border-radius:4px;font-size:11px;color:{badge_text_color};"
+            f"margin-top:-8px;margin-bottom:4px'>{badge_label}</div>",
+            unsafe_allow_html=True)
+
+    return t1 if choice_label == opt1 else t2
+
+# ══════════════════════════════════════════════════════════════
+# 10. BRACKET RESULTS / MANUAL PICK DISPLAY
 # ══════════════════════════════════════════════════════════════
 st.markdown("---")
 st.markdown("<h2 style='color:#f7c948'>📊 Step 3 — Bracket Results</h2>", unsafe_allow_html=True)
+
+if is_manual:
+    st.markdown(
+        "<div style='padding:10px;background:#1e1e2e;border-radius:6px;"
+        "border-left:4px solid #f7c948;margin-bottom:16px'>"
+        "<b style='color:#f7c948'>✍️ Manual Pick Mode</b> — "
+        "<span style='color:#ccc'>Select your winner for each matchup. "
+        "Win probabilities from the model are shown to guide your picks. "
+        "Rounds unlock as you complete prior rounds.</span></div>",
+        unsafe_allow_html=True)
 
 st.markdown("### 🗂 Divisional Results")
 div_result_tabs = st.tabs([f"🏟 {d}" for d in DIVISIONS])
@@ -369,9 +480,28 @@ for tab, div in zip(div_result_tabs, DIVISIONS):
             f"{div} Region</b></div>", unsafe_allow_html=True)
 
         for rnd in range(1, 5):
-            st.markdown(f"**🔄 {ROUND_LABELS[rnd-1]}**")
+            rnd_label = ROUND_LABELS[rnd - 1]
             num_slots = 16 // (2 ** rnd)
+
+            # Check if prior round is complete (for manual mode gate)
+            prior_complete = True
+            if rnd > 1:
+                for slot in range(16 // (2 ** (rnd - 1))):
+                    if bracket[div][rnd - 1].get(slot) is None:
+                        prior_complete = False
+                        break
+
+            if is_manual and rnd > 1 and not prior_complete:
+                st.markdown(
+                    f"<div style='padding:8px 14px;background:#1a1a1a;border-radius:6px;"
+                    f"color:#666;font-style:italic;margin-bottom:8px'>"
+                    f"🔒 {rnd_label} — Complete Round of {16 // (2**(rnd-2))} first</div>",
+                    unsafe_allow_html=True)
+                continue
+
+            st.markdown(f"**🔄 {rnd_label}**")
             cols = st.columns(min(num_slots, 4))
+
             for slot in range(num_slots):
                 with cols[slot % min(num_slots, 4)]:
                     if rnd == 1:
@@ -379,10 +509,28 @@ for tab, div in zip(div_result_tabs, DIVISIONS):
                         t1, t2 = bracket[div][0][s1], bracket[div][0][s2]
                         slbl = f"#{s1} vs #{s2}"
                     else:
-                        t1, t2 = bracket[div][rnd-1].get(slot * 2), bracket[div][rnd-1].get(slot * 2 + 1)
+                        t1 = bracket[div][rnd - 1].get(slot * 2)
+                        t2 = bracket[div][rnd - 1].get(slot * 2 + 1)
                         slbl = ""
-                    matchup_card(t1, t2, bracket[div][rnd].get(slot), slbl)
+
+                    current_winner = bracket[div][rnd].get(slot)
+
+                    if is_manual:
+                        widget_key = f"manual_{league}_{div}_rnd{rnd}_slot{slot}"
+                        if slbl:
+                            st.markdown(
+                                f"<div style='font-size:10px;color:#888;"
+                                f"margin-bottom:2px'>{slbl}</div>",
+                                unsafe_allow_html=True)
+                        picked = manual_pick_widget(t1, t2, widget_key, current_winner)
+                        bracket[div][rnd][slot] = picked
+                    else:
+                        matchup_card(t1, t2, current_winner, slbl)
+
             st.markdown("<br>", unsafe_allow_html=True)
+
+        # Save bracket changes back to session state after each division
+        st.session_state[f"bracket_{league}"] = bracket
 
         reg_champ = bracket[div][4].get(0)
         if reg_champ:
@@ -393,19 +541,59 @@ for tab, div in zip(div_result_tabs, DIVISIONS):
                 f"🏆 {div} Regional Champion: {tdisplay(reg_champ)}</div>",
                 unsafe_allow_html=True)
 
+# ══════════════════════════════════════════════════════════════
+# 11. FINAL FOUR
+# ══════════════════════════════════════════════════════════════
 st.markdown("---")
 st.markdown("### 🏟 Final Four")
+
+# Check if all regional champs are set
+all_reg_champs_set = all(bracket[div][4].get(0) is not None for div in DIVISIONS)
+
 ff_cols = st.columns(2)
 for i, (div_a, div_b) in enumerate(FF_PAIRS):
     with ff_cols[i]:
         st.markdown(f"**{div_a} vs {div_b}**")
         t1, t2 = bracket[div_a][4].get(0), bracket[div_b][4].get(0)
-        matchup_card(t1, t2, bracket['FF'].get(i), f"{div_a} vs {div_b}")
 
+        if is_manual:
+            if not all_reg_champs_set:
+                st.markdown(
+                    "<div style='color:#666;font-style:italic;font-size:13px'>"
+                    "🔒 Complete all Regional rounds first</div>",
+                    unsafe_allow_html=True)
+            else:
+                widget_key = f"manual_{league}_FF_{i}"
+                current_ff_winner = bracket['FF'].get(i)
+                picked = manual_pick_widget(t1, t2, widget_key, current_ff_winner)
+                bracket['FF'][i] = picked
+                st.session_state[f"bracket_{league}"] = bracket
+        else:
+            matchup_card(t1, t2, bracket['FF'].get(i), f"{div_a} vs {div_b}")
+
+# ══════════════════════════════════════════════════════════════
+# 12. NATIONAL CHAMPIONSHIP
+# ══════════════════════════════════════════════════════════════
 st.markdown("---")
 st.markdown("### 🥇 National Championship")
+
+ff_complete = all(bracket['FF'].get(i) is not None for i in range(2))
 t1, t2 = bracket['FF'].get(0), bracket['FF'].get(1)
-matchup_card(t1, t2, bracket.get('Champion'), "Championship")
+
+if is_manual:
+    if not ff_complete:
+        st.markdown(
+            "<div style='color:#666;font-style:italic;font-size:13px'>"
+            "🔒 Complete both Final Four matchups first</div>",
+            unsafe_allow_html=True)
+    else:
+        widget_key = f"manual_{league}_Championship"
+        current_champ = bracket.get('Champion')
+        picked_champ  = manual_pick_widget(t1, t2, widget_key, current_champ)
+        bracket['Champion'] = picked_champ
+        st.session_state[f"bracket_{league}"] = bracket
+else:
+    matchup_card(t1, t2, bracket.get('Champion'), "Championship")
 
 champ = bracket.get('Champion')
 if champ:
@@ -418,7 +606,7 @@ if champ:
         f"</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
-# 9. FULL SUMMARY TABLE
+# 13. FULL SUMMARY TABLE
 # ══════════════════════════════════════════════════════════════
 st.markdown("---")
 st.markdown("### 📋 Full Bracket Summary Table")
@@ -436,39 +624,93 @@ for div in DIVISIONS:
                 mlbl = f"Game {slot+1}"
             pred   = get_pred(t1, t2)
             winner = bracket[div][rnd].get(slot)
+
+            # Flag upset picks in manual mode
+            model_pick = None
+            is_upset   = False
+            if pred is not None:
+                model_pick = t1 if pred >= 0.5 else t2
+                is_upset   = (winner is not None and winner != model_pick)
+
             rows.append({
-                "Division": div, "Round": ROUND_LABELS[rnd-1], "Matchup": mlbl,
-                "Team 1": tdisplay(t1), "Team 2": tdisplay(t2),
+                "Division": div,
+                "Round": ROUND_LABELS[rnd - 1],
+                "Matchup": mlbl,
+                "Team 1": tdisplay(t1),
+                "Team 2": tdisplay(t2),
                 "Pred T1 Win%": f"{pred*100:.1f}%" if pred is not None else "N/A",
-                "Winner 🏆": tdisplay(winner) if winner else "—",
+                "Model Pick": tdisplay(model_pick) if model_pick else "N/A",
+                "Your Pick 🏆": tdisplay(winner) if winner else "—",
+                "Upset?": "⚠️ Yes" if is_upset else ("" if winner else "—"),
             })
 
 for i, (div_a, div_b) in enumerate(FF_PAIRS):
     t1, t2 = bracket[div_a][4].get(0), bracket[div_b][4].get(0)
     pred = get_pred(t1, t2)
+    winner = bracket['FF'].get(i)
+    model_pick = None
+    is_upset   = False
+    if pred is not None:
+        model_pick = t1 if pred >= 0.5 else t2
+        is_upset   = (winner is not None and winner != model_pick)
     rows.append({
-        "Division": "Final Four", "Round": f"{div_a} vs {div_b}", "Matchup": "Semifinal",
-        "Team 1": tdisplay(t1), "Team 2": tdisplay(t2),
+        "Division": "Final Four",
+        "Round": f"{div_a} vs {div_b}",
+        "Matchup": "Semifinal",
+        "Team 1": tdisplay(t1),
+        "Team 2": tdisplay(t2),
         "Pred T1 Win%": f"{pred*100:.1f}%" if pred is not None else "N/A",
-        "Winner 🏆": tdisplay(bracket['FF'].get(i)) if bracket['FF'].get(i) else "—",
+        "Model Pick": tdisplay(model_pick) if model_pick else "N/A",
+        "Your Pick 🏆": tdisplay(winner) if winner else "—",
+        "Upset?": "⚠️ Yes" if is_upset else ("" if winner else "—"),
     })
 
 t1, t2 = bracket['FF'].get(0), bracket['FF'].get(1)
 pred = get_pred(t1, t2)
+winner = bracket.get('Champion')
+model_pick = None
+is_upset   = False
+if pred is not None:
+    model_pick = t1 if pred >= 0.5 else t2
+    is_upset   = (winner is not None and winner != model_pick)
 rows.append({
-    "Division": "Championship", "Round": "Final", "Matchup": "National Championship",
-    "Team 1": tdisplay(t1), "Team 2": tdisplay(t2),
+    "Division": "Championship",
+    "Round": "Final",
+    "Matchup": "National Championship",
+    "Team 1": tdisplay(t1),
+    "Team 2": tdisplay(t2),
     "Pred T1 Win%": f"{pred*100:.1f}%" if pred is not None else "N/A",
-    "Winner 🏆": tdisplay(bracket.get('Champion')) if bracket.get('Champion') else "—",
+    "Model Pick": tdisplay(model_pick) if model_pick else "N/A",
+    "Your Pick 🏆": tdisplay(winner) if winner else "—",
+    "Upset?": "⚠️ Yes" if is_upset else ("" if winner else "—"),
 })
 
 df_summary = pd.DataFrame(rows)
 
 def hl(row):
     s = [''] * len(row)
-    wi = list(row.index).index("Winner 🏆")
-    if row["Winner 🏆"] not in ("—", "TBD", ""):
-        s[wi] = "background-color:#155724;color:#d4edda;font-weight:700"
+    pick_col = list(row.index).index("Your Pick 🏆")
+    upset_col = list(row.index).index("Upset?")
+    if row["Your Pick 🏆"] not in ("—", "TBD", ""):
+        if row.get("Upset?", "") == "⚠️ Yes":
+            s[pick_col]  = "background-color:#721c24;color:#f8d7da;font-weight:700"
+            s[upset_col] = "background-color:#721c24;color:#f8d7da"
+        else:
+            s[pick_col] = "background-color:#155724;color:#d4edda;font-weight:700"
     return s
+
+# Show upset summary if manual mode
+if is_manual:
+    upset_count = sum(1 for r in rows if r.get("Upset?") == "⚠️ Yes")
+    total_picked = sum(1 for r in rows if r["Your Pick 🏆"] not in ("—", "TBD", ""))
+    if total_picked > 0:
+        st.markdown(
+            f"<div style='padding:10px 16px;background:#2a1e1e;border-radius:6px;"
+            f"border-left:4px solid #ff8a80;margin-bottom:12px'>"
+            f"<b style='color:#ff8a80'>🎲 Your Bracket Summary</b><br>"
+            f"<span style='color:#ccc'>{total_picked} picks made · "
+            f"<b style='color:#f8d7da'>{upset_count} upset picks</b> · "
+            f"{total_picked - upset_count} model-aligned picks</span></div>",
+            unsafe_allow_html=True)
 
 st.dataframe(df_summary.style.apply(hl, axis=1), use_container_width=True, hide_index=True)
