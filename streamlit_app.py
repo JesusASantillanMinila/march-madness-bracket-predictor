@@ -597,7 +597,7 @@ else:
 
 champ = bracket.get('Champion')
 if champ:
-    st.balloons()
+    
     st.markdown(
         f"<div style='text-align:center;padding:30px;border-radius:14px;"
         f"background:linear-gradient(135deg,#f7971e,#ffd200);color:#111;"
