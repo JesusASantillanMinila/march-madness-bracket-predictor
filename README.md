@@ -4,7 +4,7 @@ A high-performance Streamlit dashboard for simulating the NCAA March Madness tou
 
 Features
 
--Dual Simulation Modes:\n
+-Dual Simulation Modes:
 
 --Auto-Simulate: Uses a pre-trained XGBoost model to predict winners based on historical win probabilities.
 
