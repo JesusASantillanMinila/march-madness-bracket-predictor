@@ -2,7 +2,7 @@ March Madness Bracket Predictor
 A high-performance Streamlit dashboard for simulating the NCAA March Madness tournament. This tool allows users to predict tournament outcomes for both Men's and Women's leagues using either automated model predictions (powered by XGBoost) or custom manual picks.
 
 Features
--Dual Simulation Modes:
+-Dual Simulation Modes:\n
 --Auto-Simulate: Uses a pre-trained XGBoost model to predict winners based on historical win probabilities.
 --Manual Picks: Allows users to act as the Selection Committee, making their own choices while viewing model-calculated win probabilities for guidance.
 -Comprehensive Data Integration: Fetches real-time prediction data from Google Sheets and team metadata from Google Drive.
