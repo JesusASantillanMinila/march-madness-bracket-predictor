@@ -1,4 +1,5 @@
 March Madness Bracket Predictor
+
 A high-performance Streamlit dashboard for simulating the NCAA March Madness tournament. This tool allows users to predict tournament outcomes for both Men's and Women's leagues using either automated model predictions (powered by XGBoost) or custom manual picks.
 
 Features
