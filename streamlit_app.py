@@ -233,7 +233,7 @@ st.markdown(
 
 total_filled = sum(1 for d in DIVISIONS for s in SEEDS if bracket[d][0][s] is not None)
 pct = int(total_filled / 64 * 100)
-status_msg = "✅ Teams loaded.**" if load_bracket_csv() is not None else "⚠️ teams.csv not found (Random Fill used)"
+status_msg = "✅ **Teams loaded.**" if load_bracket_csv() is not None else "⚠️ teams.csv not found (Random Fill used)"
 
 st.markdown(
     f"<div style='padding:10px;background:#1e2a1e;border-radius:6px;"
